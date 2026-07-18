@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reportar Incidente - On-Call Engine</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="brand">
+            <span>On-Call</span> Engine
+        </div>
+        <div class="nav-links">
+            <a th:href="@{/dashboard}" class="nav-link">Dashboard</a>
+            <a th:href="@{/incidents}" class="nav-link active">Incidentes</a>
+        </div>
+        <div class="nav-links">
+            <div class="user-profile">
+                <div class="user-avatar" th:text="${#strings.substring(currentUser, 0, 1).toUpperCase()}">U</div>
+                <span style="font-size: 0.9rem; font-weight: 600;" th:text="${currentUser}">usuario</span>
+            </div>
+            <form th:action="@{/logout}" method="post" style="display: inline;">
+                <button type="submit" class="logout-btn">Salir</button>
+            </form>
+        </div>
+    </header>
+
+    <main class="container" style="max-width: 680px;">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Reportar Nuevo Incidente</h1>
+                <p style="color: var(--text-secondary); margin-top: 0.2rem;">Simula la detección o reporte de una falla operativa.</p>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 2.5rem;">
+            <form th:action="@{/incidents/new}" method="post">
+                <div class="form-group">
+                    <label class="form-label" for="title">Título del Incidente</label>
+                    <input class="form-control" type="text" id="title" name="title" placeholder="Ej., Caída del API de Pagos / Error 500 en Checkout" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="description">Descripción del Impacto</label>
+                    <textarea class="form-control" id="description" name="description" placeholder="Ingresa detalles técnicos del incidente, endpoints afectados o logs de error..." required></textarea>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="severity">Nivel de Severidad</label>
+                        <select class="form-control" id="severity" name="severity" required>
+                            <option th:each="sev : ${severities}" th:value="${sev}" th:text="${sev} + ' (' + (${sev.name() == 'SEV1' ? 'Crítico - Triage: 2m / Ack: 1m' : sev.name() == 'SEV2' ? 'Mayor - Triage: 5m / Ack: 2m' : sev.name() == 'SEV3' ? 'Menor - Triage: 15m / Ack: 5m' : 'Cosmético - Triage: 30m / Ack: 10m'}) + ')'"></option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" for="scheduleId">Grupo de Guardia On-Call</label>
+                        <select class="form-control" id="scheduleId" name="scheduleId" required>
+                            <option th:each="schedule : ${schedules}" th:value="${schedule.id}" th:text="${schedule.name}"></option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                    <a th:href="@{/incidents}" class="btn btn-secondary" style="flex: 1;">Cancelar</a>
+                    <button class="btn btn-primary" type="submit" style="flex: 1;">Reportar e Iniciar Triage</button>
+                </div>
+            </form>
+        </div>
+    </main>
+</body>
+</html>

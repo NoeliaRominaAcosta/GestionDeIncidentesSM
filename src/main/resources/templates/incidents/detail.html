@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle del Incidente - On-Call Engine</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="brand">
+            <span>On-Call</span> Engine
+        </div>
+        <div class="nav-links">
+            <a th:href="@{/dashboard}" class="nav-link">Dashboard</a>
+            <a th:href="@{/incidents}" class="nav-link active">Incidentes</a>
+        </div>
+        <div class="nav-links">
+            <div class="user-profile">
+                <div class="user-avatar" th:text="${#strings.substring(currentUser, 0, 1).toUpperCase()}">U</div>
+                <span style="font-size: 0.9rem; font-weight: 600;" th:text="${currentUser}">usuario</span>
+            </div>
+            <form th:action="@{/logout}" method="post" style="display: inline;">
+                <button type="submit" class="logout-btn">Salir</button>
+            </form>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Exhausted Alert Banner -->
+        <div th:if="${incident.escalationExhausted}" class="alert-exhausted">
+            <svg style="width: 24px; height: 24px; fill: currentColor;" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+            </svg>
+            <span>¡ESCALAMIENTO AGOTADO! Ningún miembro del grupo de guardia está disponible o activo. Se requiere asignación manual.</span>
+        </div>
+
+        <div class="page-header" style="margin-bottom: 1.5rem;">
+            <div>
+                <div style="display: flex; gap: 0.8rem; align-items: center; margin-bottom: 0.5rem;">
+                    <span class="badge" th:classappend="'badge-' + ${#strings.toLowerCase(incident.severity)}" th:text="${incident.severity}">SEV1</span>
+                    <span class="badge" th:classappend="'badge-' + ${#strings.toLowerCase(incident.state)}" th:text="${incident.state}">TRIAGE</span>
+                    <span style="font-size: 0.85rem; color: var(--text-muted);" th:text="'ID: #' + ${incident.id}">ID: #1</span>
+                </div>
+                <h1 class="page-title" th:text="${incident.title}">Título del Incidente</h1>
+            </div>
+            <a th:href="@{/incidents}" class="btn btn-secondary">Volver al Historial</a>
+        </div>
+
+        <div class="detail-layout">
+            <!-- Left Column: Details, Actions & Post-Mortem -->
+            <div>
+                <!-- Description Card -->
+                <div class="card" style="margin-bottom: 2rem;">
+                    <h3 style="margin-bottom: 1rem; font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Detalles del Incidente</h3>
+                    <p class="incident-description" th:text="${incident.description}"></p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.9rem; color: var(--text-secondary); margin-top: 1rem;">
+                        <div><strong>Grupo de Guardia:</strong> <span th:text="${incident.onCallSchedule.name}">Backend</span></div>
+                        <div><strong>Creado el:</strong> <span th:text="${#temporals.format(incident.createdAt, 'dd/MM/yyyy HH:mm:ss')}">Fecha</span></div>
+                        <div>
+                            <strong>Asignado Actual:</strong> 
+                            <span th:if="${incident.currentAssignee != null}" style="color: var(--text-primary); font-weight: 600;" th:text="${incident.currentAssignee.fullName}">Usuario</span>
+                            <span th:if="${incident.currentAssignee == null}" style="color: var(--color-sev2); font-weight: 600;">Sin Asignar (TRIAGE)</span>
+                        </div>
+                        <div><strong>Escalamientos:</strong> <span th:text="${incident.escalationCount}">0</span></div>
+                    </div>
+                </div>
+
+                <!-- Actions Card -->
+                <div class="card" style="margin-bottom: 2rem; padding: 2rem;">
+                    <h3 style="margin-bottom: 1.5rem; font-size: 1.1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Acciones Disponibles</h3>
+                    
+                    <!-- If state is ASIGNADO -->
+                    <div th:if="${incident.state.name() == 'ASIGNADO'}" style="text-align: center;">
+                        <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">El incidente está asignado esperando confirmación de recepción (Acknowledge).</p>
+                        
+                        <div th:if="${isAssignee}">
+                            <form th:action="@{/incidents/{id}/ack(id=${incident.id})}" method="post">
+                                <button type="submit" class="btn btn-success" style="width: 100%; padding: 1rem;">
+                                    Confirmar Recepción (ACK) como <span th:text="${currentUser}"></span>
+                                </button>
+                            </form>
+                        </div>
+                        <div th:if="${!isAssignee}" class="alert-exhausted" style="background: rgba(255,255,255,0.02); border-color: var(--border-color); color: var(--text-muted); animation: none; justify-content: center;">
+                            Solo el usuario asignado (<span th:text="${incident.currentAssignee != null ? incident.currentAssignee.username : 'ninguno'}"></span>) puede confirmar este incidente.
+                        </div>
+                    </div>
+
+                    <!-- If state is EN_MITIGACION -->
+                    <div th:if="${incident.state.name() == 'EN_MITIGACION'}" style="text-align: center;">
+                        <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">El incidente ha sido confirmado y está bajo mitigación activa.</p>
+                        
+                        <div th:if="${isAssignee}">
+                            <form th:action="@{/incidents/{id}/mitigate(id=${incident.id})}" method="post">
+                                <button type="submit" class="btn btn-warning" style="width: 100%; padding: 1rem; color: #0b0f19;">
+                                    Marcar como Mitigado (Cesar Impacto)
+                                </button>
+                            </form>
+                        </div>
+                        <div th:if="${!isAssignee}" class="alert-exhausted" style="background: rgba(255,255,255,0.02); border-color: var(--border-color); color: var(--text-muted); animation: none; justify-content: center;">
+                            Solo el usuario asignado (<span th:text="${incident.currentAssignee.username}"></span>) puede mitigar este incidente.
+                        </div>
+                    </div>
+
+                    <!-- If state is MITIGADO -->
+                    <div th:if="${incident.state.name() == 'MITIGADO'}" style="text-align: center;">
+                        <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">El impacto ha sido mitigado. Se puede proceder a cerrar el caso.</p>
+                        <form th:action="@{/incidents/{id}/close(id=${incident.id})}" method="post">
+                            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem;">
+                                Cerrar Incidente
+                            </button>
+                        </form>
+                        <p th:if="${incident.severity.name() == 'SEV1' || incident.severity.name() == 'SEV2'}" style="color: var(--color-sev2); font-size: 0.8rem; margin-top: 0.8rem;">
+                            Nota: Debido a la criticidad (<span th:text="${incident.severity}"></span>), al presionar "Cerrar" serás desviado para completar el post-mortem obligatorio.
+                        </p>
+                    </div>
+
+                    <!-- If state is POST_MORTEM_PENDIENTE -->
+                    <div th:if="${incident.state.name() == 'POST_MORTEM_PENDIENTE'}">
+                        <h4 style="color: var(--color-sev2); margin-bottom: 1rem;">Post-Mortem Requerido (Obligatorio para SEV1/SEV2)</h4>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;">El cierre formal está bloqueado hasta que documentes el análisis de causa raíz.</p>
+                        
+                        <form th:action="@{/incidents/{id}/postmortem(id=${incident.id})}" method="post">
+                            <div class="form-group">
+                                <label class="form-label" for="rootCause">Causa Raíz (¿Qué ocurrió y por qué?)</label>
+                                <textarea class="form-control" id="rootCause" name="rootCause" placeholder="Ingresa el análisis de la causa raíz técnica..." required></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="actionItems">Acciones Correctivas (Plan de acción)</label>
+                                <textarea class="form-control" id="actionItems" name="actionItems" placeholder="Ingresa los items correctivos con sus responsables para evitar que vuelva a suceder..." required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-success" style="width: 100%;">Completar Análisis y Cerrar Incidente</button>
+                        </form>
+                    </div>
+
+                    <!-- If state is CERRADO -->
+                    <div th:if="${incident.state.name() == 'CERRADO'}" style="text-align: center;">
+                        <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">El incidente se encuentra cerrado y archivado.</p>
+                        <form th:action="@{/incidents/{id}/reopen(id=${incident.id})}" method="post">
+                            <button type="submit" class="btn btn-danger" style="width: 100%; padding: 1rem;">
+                                Reabrir Incidente (Regresión detectada)
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Post-Mortem Report Detail (if completed) -->
+                <div th:if="${postmortem != null}" class="card" style="border-color: rgba(236, 72, 153, 0.3); background: rgba(236, 72, 153, 0.02); margin-bottom: 2rem;">
+                    <h3 style="color: var(--state-postmortem); margin-bottom: 1.2rem; display: flex; align-items: center; gap: 0.5rem; font-size: 1.15rem;">
+                        Reporte Post-Mortem Completado
+                    </h3>
+                    <div style="font-size: 0.92rem; color: var(--text-secondary);">
+                        <div style="margin-bottom: 1rem;">
+                            <strong style="color: var(--text-primary); display: block; margin-bottom: 0.3rem;">Causa Raíz:</strong>
+                            <p style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;" th:text="${postmortem.rootCause}"></p>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <strong style="color: var(--text-primary); display: block; margin-bottom: 0.3rem;">Acciones Correctivas:</strong>
+                            <p style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px;" th:text="${postmortem.actionItems}"></p>
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted); text-align: right; border-top: 1px solid var(--border-color); padding-top: 0.8rem;">
+                            Documentado por <strong th:text="${postmortem.author}">romina</strong> el <span th:text="${#temporals.format(postmortem.createdAt, 'dd/MM/yyyy HH:mm')}">Fecha</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Timer & Timeline logs -->
+            <div>
+                <!-- Live Timer Card -->
+                <div th:if="${incident.timeoutAt != null}" id="countdown-container" class="countdown-box">
+                    <span class="timer-clock" id="timer-clock">00:00</span>
+                    <span class="timer-label" th:text="${incident.state.name() == 'ASIGNADO' ? 'Próximo Escalamiento (ACK)' : 'Tiempo Límite en Triage'}">Límite de Tiempo</span>
+                    
+                    <!-- Hidden element to pass LocalDateTime formatted in ISO-8601 to Javascript -->
+                    <div id="timer-data" style="display: none;" 
+                         th:data-timeout="${incident.timeoutAt != null ? #temporals.format(incident.timeoutAt, 'yyyy-MM-dd''T''HH:mm:ss') : ''}"></div>
+                </div>
+
+                <!-- Transition Timeline Log -->
+                <div class="card">
+                    <h3 style="font-size: 1.1rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Historial de Auditoría</h3>
+                    
+                    <div class="timeline">
+                        <div th:each="log, iter : ${logs}" class="timeline-item" th:classappend="${iter.last} ? 'active' : ''">
+                            <div class="timeline-date" th:text="${#temporals.format(log.timestamp, 'HH:mm:ss')}">14:02:15</div>
+                            <div class="timeline-title">
+                                <span th:if="${log.fromState != null}" th:text="${log.fromState}">FROM</span>
+                                <span th:if="${log.fromState != null}" style="color: var(--text-muted);">&rarr;</span>
+                                <span style="font-weight: bold; color: var(--text-primary);" th:text="${log.toState}">TO</span>
+                            </div>
+                            <div class="timeline-desc">
+                                Transición vía <strong th:text="${log.event}">EVENT</strong> 
+                                por <span style="font-style: italic; color: var(--text-secondary);" th:text="${log.triggeredBy}">SYSTEM</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- JavaScript Countdown controller -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const timerEl = document.getElementById('timer-clock');
+            const dataEl = document.getElementById('timer-data');
+            
+            if (timerEl && dataEl) {
+                const timeoutStr = dataEl.getAttribute('data-timeout');
+                if (timeoutStr) {
+                    const targetTime = new Date(timeoutStr).getTime();
+                    
+                    const updateTimer = () => {
+                        const now = new Date().getTime();
+                        const distance = targetTime - now;
+                        
+                        if (distance <= 0) {
+                            timerEl.innerText = "00:00";
+                            document.getElementById('countdown-container').classList.add('critical');
+                            timerEl.innerText = "Escalando...";
+                            clearInterval(interval);
+                            
+                            // Auto-recarga la página tras 1.5 segundos del timeout para reflejar el escalamiento en la UI
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1500);
+                            return;
+                        }
+                        
+                        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                        
+                        const minStr = String(minutes).padStart(2, '0');
+                        const secStr = String(seconds).padStart(2, '0');
+                        
+                        timerEl.innerText = minStr + ":" + secStr;
+                        
+                        // Resaltar en rojo si falta menos de 30 segundos
+                        if (distance < 30000) {
+                            document.getElementById('countdown-container').classList.add('critical');
+                        }
+                    };
+                    
+                    updateTimer();
+                    const interval = setInterval(updateTimer, 1000);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

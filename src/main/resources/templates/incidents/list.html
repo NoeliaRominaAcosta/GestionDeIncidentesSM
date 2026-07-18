@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incidentes - On-Call Engine</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="brand">
+            <span>On-Call</span> Engine
+        </div>
+        <div class="nav-links">
+            <a th:href="@{/dashboard}" class="nav-link">Dashboard</a>
+            <a th:href="@{/incidents}" class="nav-link active">Incidentes</a>
+        </div>
+        <div class="nav-links">
+            <div class="user-profile">
+                <div class="user-avatar" th:text="${#strings.substring(currentUser, 0, 1).toUpperCase()}">U</div>
+                <span style="font-size: 0.9rem; font-weight: 600;" th:text="${currentUser}">usuario</span>
+            </div>
+            <form th:action="@{/logout}" method="post" style="display: inline;">
+                <button type="submit" class="logout-btn">Salir</button>
+            </form>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Historial de Incidentes</h1>
+                <p style="color: var(--text-secondary); margin-top: 0.2rem;">Lista de incidentes activos e históricos.</p>
+            </div>
+            <a th:href="@{/incidents/new}" class="btn btn-primary">Reportar Incidente</a>
+        </div>
+
+        <!-- Filters form -->
+        <div class="card" style="padding: 1rem 1.5rem; margin-bottom: 2rem; border-radius: 12px;">
+            <form th:action="@{/incidents}" method="get" style="display: flex; gap: 1.5rem; align-items: flex-end; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 180px;">
+                    <label class="form-label" for="state">Estado</label>
+                    <select class="form-control" id="state" name="state" style="padding: 0.5rem 1rem;">
+                        <option value="">Todos los estados</option>
+                        <option th:each="st : ${states}" th:value="${st}" th:text="${st}" th:selected="${st == selectedState}"></option>
+                    </select>
+                </div>
+
+                <div style="flex: 1; min-width: 180px;">
+                    <label class="form-label" for="severity">Severidad</label>
+                    <select class="form-control" id="severity" name="severity" style="padding: 0.5rem 1rem;">
+                        <option value="">Todas las severidades</option>
+                        <option th:each="sev : ${severities}" th:value="${sev}" th:text="${sev}" th:selected="${sev == selectedSeverity}"></option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 0.8rem;">
+                    <button class="btn btn-primary" type="submit" style="padding: 0.5rem 1.5rem; height: 38px;">Filtrar</button>
+                    <a th:href="@{/incidents}" class="btn btn-secondary" style="padding: 0.5rem 1.5rem; height: 38px;">Limpiar</a>
+                </div>
+            </form>
+        </div>
+
+        <!-- Table / Grid representation of Incidents -->
+        <div th:if="${#lists.isEmpty(incidents)}" class="card" style="padding: 3rem; text-align: center;">
+            <p style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 1.5rem;">No se encontraron incidentes que coincidan con los filtros.</p>
+            <a th:href="@{/incidents/new}" class="btn btn-primary">Reportar Primer Incidente</a>
+        </div>
+
+        <div th:if="${!#lists.isEmpty(incidents)}" class="grid-3">
+            <div th:each="incident : ${incidents}" class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                        <span class="badge" th:classappend="'badge-' + ${#strings.toLowerCase(incident.severity)}" th:text="${incident.severity}">SEV1</span>
+                        <span class="badge" th:classappend="'badge-' + ${#strings.toLowerCase(incident.state)}" th:text="${incident.state}">TRIAGE</span>
+                    </div>
+                    
+                    <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem;">
+                        <a th:href="@{/incidents/{id}(id=${incident.id})}" th:text="${incident.title}">Título</a>
+                    </h3>
+                    <p style="color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 1.5rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;" th:text="${incident.description}"></p>
+                </div>
+
+                <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: var(--text-muted);">
+                    <div>
+                        <span>Asignado:</span>
+                        <span th:if="${incident.currentAssignee != null}" style="font-weight: 600; color: var(--text-primary);" th:text="${incident.currentAssignee.fullName}">Usuario</span>
+                        <span th:if="${incident.currentAssignee == null}" style="font-weight: 600; color: var(--color-sev2);">Sin Asignar</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span th:if="${incident.escalationCount > 0}" style="font-weight: 600; color: var(--color-sev1);" th:text="${incident.escalationCount} + ' escalamientos'">1</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

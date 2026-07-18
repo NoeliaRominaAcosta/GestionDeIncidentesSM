@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - On-Call Engine</title>
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="brand">
+            <span>On-Call</span> Engine
+        </div>
+        <div class="nav-links">
+            <a th:href="@{/dashboard}" class="nav-link active">Dashboard</a>
+            <a th:href="@{/incidents}" class="nav-link">Incidentes</a>
+        </div>
+        <div class="nav-links">
+            <div class="user-profile">
+                <div class="user-avatar" th:text="${#strings.substring(currentUser, 0, 1).toUpperCase()}">U</div>
+                <span style="font-size: 0.9rem; font-weight: 600;" th:text="${currentUser}">usuario</span>
+            </div>
+            <form th:action="@{/logout}" method="post" style="display: inline;">
+                <button type="submit" class="logout-btn">Salir</button>
+            </form>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Panel de Control</h1>
+                <p style="color: var(--text-secondary); margin-top: 0.2rem;">Métricas de rendimiento operativo en tiempo real de la guardia.</p>
+            </div>
+            <a th:href="@{/incidents/new}" class="btn btn-primary">Reportar Incidente</a>
+        </div>
+
+        <!-- Metrics Row -->
+        <div class="metrics-row">
+            <div class="metric-card active">
+                <span class="metric-title">Incidentes Activos</span>
+                <span class="metric-value" th:text="${activeIncidents}">0</span>
+                <span class="metric-sub">Triage, Asignado, Mitigando</span>
+            </div>
+            <div class="metric-card escalations">
+                <span class="metric-title">Escalamientos Totales</span>
+                <span class="metric-value" th:text="${totalEscalations}">0</span>
+                <span class="metric-sub">Alertas no respondidas</span>
+            </div>
+            <div class="metric-card mtta">
+                <span class="metric-title">MTTA (Confirmación)</span>
+                <span class="metric-value" th:text="${mtta}">0s</span>
+                <span class="metric-sub">Tiempo medio de ACK</span>
+            </div>
+            <div class="metric-card mttr">
+                <span class="metric-title">MTTR (Mitigación)</span>
+                <span class="metric-value" th:text="${mttr}">0s</span>
+                <span class="metric-sub">Tiempo medio de solución</span>
+            </div>
+        </div>
+
+        <!-- Leaderboard and Quick Actions -->
+        <div class="detail-layout">
+            <div class="card" style="padding: 2rem;">
+                <h3 style="margin-bottom: 1.5rem; font-size: 1.2rem;">Métricas y Resiliencia del Motor</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 1.2rem;">
+                    Este panel expone métricas claves del negocio (MTTA y MTTR) calculadas dinámicamente desde el historial de auditoría de la máquina de estados. 
+                </p>
+                <p style="color: var(--text-secondary); margin-bottom: 1.2rem;">
+                    El motor de guardias distribuye alertas automáticamente según las políticas de guardia configuradas. Si un ingeniero asignado no realiza el "Acknowledge" dentro de los tiempos límite, el sistema escalará al siguiente ingeniero de forma circular.
+                </p>
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <a th:href="@{/incidents}" class="btn btn-secondary" style="flex: 1;">Ver todos los incidentes</a>
+                    <a th:href="@{/incidents/new}" class="btn btn-primary" style="flex: 1;">Reportar nuevo caso</a>
+                </div>
+            </div>
+
+            <!-- Leaderboard / Missed Acks -->
+            <div class="card" style="padding: 2rem;">
+                <h3 style="margin-bottom: 1.5rem; font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem;">
+                    Ranking de Fallas (Missed Acks)
+                </h3>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;">
+                    Cantidad de veces que un usuario no confirmó una alerta a tiempo y fue escalado.
+                </p>
+                
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <div th:each="user, iterStat : ${leaderboard}" 
+                         style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: rgba(255,255,255,0.02); border-radius: 10px; border: 1px solid var(--border-color);">
+                        <div style="display: flex; align-items: center; gap: 0.8rem;">
+                            <span style="font-weight: bold; color: var(--text-muted);" th:text="${iterStat.count}">1</span>
+                            <div class="user-avatar" style="width: 32px; height: 32px; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--border-color);"
+                                 th:text="${#strings.substring(user.username, 0, 1).toUpperCase()}">U</div>
+                            <div>
+                                <div style="font-weight: 600; font-size: 0.95rem;" th:text="${user.fullName}">Nombre</div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);" th:text="${user.role}">Rol</div>
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="font-weight: 800; font-size: 1.1rem; color: var(--color-sev1);" th:text="${user.missedAcksCount}">0</span>
+                            <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">missed</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
